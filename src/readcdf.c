@@ -26,7 +26,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: readcdf.c,v 1.51 2015/01/11 16:58:25 christos Exp $")
+FILE_RCSID("@(#)$File: readcdf.c,v 1.56 2016/03/03 22:20:03 christos Exp $")
 #endif
 
 #include <assert.h>
@@ -60,12 +60,16 @@ static const struct nv {
 	{ "Windows Installer",		"vnd.ms-msi",		},
 	{ NULL,				NULL,			},
 }, name2mime[] = {
+	{ "Book",			"vnd.ms-excel",		},
+	{ "Workbook",			"vnd.ms-excel",		},
 	{ "WordDocument",		"msword",		},
 	{ "PowerPoint",			"vnd.ms-powerpoint",	},
 	{ "DigitalSignature",		"vnd.ms-msi",		},
 	{ NULL,				NULL,			},
 }, name2desc[] = {
-	{ "WordDocument",		"Microsoft Office Word",},
+	{ "Book",			"Microsoft Excel",	},
+	{ "Workbook",			"Microsoft Excel",	},
+	{ "WordDocument",		"Microsoft Word",	},
 	{ "PowerPoint",			"Microsoft PowerPoint",	},
 	{ "DigitalSignature",		"Microsoft Installer",	},
 	{ NULL,				NULL,			},
@@ -119,6 +123,8 @@ cdf_app_to_mime(const char *vbuf, const struct nv *nv)
 	assert(c_lc_ctype != NULL);
 	old_lc_ctype = uselocale(c_lc_ctype);
 	assert(old_lc_ctype != NULL);
+#else
+	char *old_lc_ctype = setlocale(LC_CTYPE, "C");
 #endif
 	for (i = 0; nv[i].pattern != NULL; i++)
 		if (strcasestr(vbuf, nv[i].pattern) != NULL) {
@@ -131,6 +137,8 @@ cdf_app_to_mime(const char *vbuf, const struct nv *nv)
 #ifdef USE_C_LOCALE
 	(void)uselocale(old_lc_ctype);
 	freelocale(c_lc_ctype);
+#else
+	setlocale(LC_CTYPE, old_lc_ctype);
 #endif
 	return rv;
 }
@@ -365,7 +373,7 @@ cdf_file_catalog_info(struct magic_set *ms, const cdf_info_t *info,
 	    dir, "Catalog", scn)) == -1)
 		return i;
 #ifdef CDF_DEBUG
-	cdf_dump_catalog(&h, &scn);
+	cdf_dump_catalog(&h, scn);
 #endif
 	if ((i = cdf_file_catalog(ms, h, scn)) == -1)
 		return -1;
@@ -454,7 +462,7 @@ file_trycdf(struct magic_set *ms, int fd, const unsigned char *buf,
         info.i_fd = fd;
         info.i_buf = buf;
         info.i_len = nbytes;
-        if (ms->flags & MAGIC_APPLE)
+        if (ms->flags & (MAGIC_APPLE|MAGIC_EXTENSION))
                 return 0;
         if (cdf_read_header(&info, &h) == -1)
                 return 0;
